@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections.ObjectModel;
 using System.IO;
+using AngleSharp.Parser.Html;
 
 namespace Catcher
 {
@@ -29,8 +30,8 @@ namespace Catcher
             {
                 if (!ttt.IsCanceled)
                 {
-                    string result = awaiter.GetResult();
-                    Console.WriteLine(result);
+                    //string result = awaiter.GetResult();
+                    //Console.WriteLine(result);
                 }
 
             });
@@ -62,14 +63,16 @@ namespace Catcher
             //accept - language: zh - CN,zh; q = 0.9,en; q = 0.8
 
             // ... Target page.
-            string page = "https://s.taobao.com/";
+            Uri url = new Uri("https://s.taobao.com/search?initiative_id=staobaoz_20180120&q=内存");
             string data = "";
-            var request = new HttpRequestMessage(HttpMethod.Get, page);
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
             //httpContent.Content = 
             request.Version = new Version(2, 0);
             request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
             request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("deflate"));
             request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("br"));
+
+            
             //if (request.Content.Headers.ContentEncoding != null && request.Content.Headers.ContentEncoding.Any())
             //{
             //    //// request content is compressed, decompress it.
@@ -134,6 +137,17 @@ namespace Catcher
                 responseBytes = Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding("GBK"), responseBytes);
                 //string result = Encoding.Unicode.GetString(responseBytes, 0, responseBytes.Length - 1);
                 string result = Encoding.GetEncoding("GBK").GetString(responseBytes);
+
+                var parser = new HtmlParser();
+                //Just get the DOM representation
+                var document = parser.Parse(result);
+
+                //Serialize it back to the console
+                //Console.WriteLine(document.DocumentElement.OuterHtml);
+                var blueListItemsLinq = document.All.Where(m => m.LocalName == "html");
+                foreach (var item in blueListItemsLinq)
+
+                    //Console.WriteLine(item.OuterHtml);
                 //string result = Encoding.Unicode.GetString(responseBytes);
                 //Uri uri = new Uri("https://s.taobao.com/");
                 //CookieCollection responseCookies = cookies.GetCookies(uri);
