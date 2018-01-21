@@ -21,6 +21,7 @@ namespace Catcher
             Compressors.Add(new GZipCompressor());
         }
 
+
         public void DoTest()
         {
             Task<string> ttt = Task<string>.Run(DownloadPageAsync);
@@ -62,7 +63,7 @@ namespace Catcher
             //accept - language: zh - CN,zh; q = 0.9,en; q = 0.8
 
             // ... Target page.
-            string page = "https://s.taobao.com/";
+            string page = "https://s.taobao.com/search?initiative_id=staobaoz_20180120&q=%E9%AB%98%E8%B7%9F%E9%9E%8B";
             string data = "";
             var request = new HttpRequestMessage(HttpMethod.Get, page);
             //httpContent.Content = 
@@ -119,6 +120,13 @@ namespace Catcher
                 //}
                 //responseHeaders.GetValues()
                 byte[] responseBytes = await content.ReadAsByteArrayAsync();
+
+                FileStream fs = new FileStream("F:/test.txt", FileMode.OpenOrCreate);
+                StreamWriter sw = new StreamWriter(fs);
+                //string result = Encoding.GetEncoding("GBK").GetString(responseBytes);
+                responseBytes = Encoding.Convert(Encoding.UTF8, Encoding.Unicode, responseBytes);
+                fs.Write(responseBytes, 0, responseBytes.Length);
+                //sw.Write(responseBytes);
                 //string header = .First();
                 //HttpResponseHeaders responseHeaders = response;
                 //foreach (var v in response.Headers.GetValues("Content-Encoding"))
@@ -131,16 +139,16 @@ namespace Catcher
                 //    //}
                 //}
                 //string result = await content.ReadAsStringAsync();
-                responseBytes = Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding("GBK"), responseBytes);
+                //responseBytes = Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding("GBK"), responseBytes);
                 //string result = Encoding.Unicode.GetString(responseBytes, 0, responseBytes.Length - 1);
-                string result = Encoding.GetEncoding("GBK").GetString(responseBytes);
+                //string result = Encoding.GetEncoding("GBK").GetString(responseBytes);
                 //string result = Encoding.Unicode.GetString(responseBytes);
                 //Uri uri = new Uri("https://s.taobao.com/");
                 //CookieCollection responseCookies = cookies.GetCookies(uri);
                 //foreach (Cookie cookie in responseCookies)
                 //    Console.WriteLine(cookie.Name + ": " + cookie.Value);
 
-                data = result;
+                data = "";
             }
             catch (Exception ex)
             {
