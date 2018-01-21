@@ -16,8 +16,8 @@ namespace Catcher
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             //Task t = new Task<>(DownloadPageAsync);
 
-            MyCatch AA = new MyCatch();
-            AA.DoTest();
+            CatcherHander catcherHander = new CatcherHander();
+            catcherHander.DoTest();
 
             //DownloadPageAsync()
             //Task t = new Task(DownloadPageAsync);
