@@ -21,13 +21,27 @@ namespace Catcher
     class CatcherHander
     {
         public Collection<ICompressor> Compressors { get; private set; }
+        public string SHOP_SEARCH_PATH = "";
+        public int PAGE_SIZE = 20;
+        private void CreateIfMissing(string path)
+        {
+            bool folderExists = Directory.Exists(path);
+            if (!folderExists)
+                Directory.CreateDirectory(path);
+        }
 
         public CatcherHander()
         {
             Compressors = new Collection<ICompressor>();
             Compressors.Add(new GZipCompressor());
-        }
+            string str = this.GetType().Assembly.Location;
+            str = Path.GetDirectoryName(str);
+            str = Path.Combine(str, "shopsearch");
+            SHOP_SEARCH_PATH = str;
+            CreateIfMissing(str);
 
+            //Directory.Exists("")
+        }
 
         public void DoTest()
         {
@@ -37,8 +51,8 @@ namespace Catcher
             {
                 if (!ttt.IsCanceled)
                 {
-                    //string result = awaiter.GetResult();
-                    //Console.WriteLine(result);
+                    string result = awaiter.GetResult();
+                    Console.WriteLine(result);
                 }
 
             });
@@ -82,22 +96,18 @@ namespace Catcher
             return ret;
         }
 
-        async Task<string> DownloadPageAsync()
+        public int GetExistsPageIndex()
         {
-            string proxyUri = string.Format("{0}:{1}", "127.0.0.1", 8888);
-            WebProxy proxy = new WebProxy(proxyUri);
-            // {
-            //UseDefaultCredentials = false,
-            //Credentials = proxyCreds,
-            // };
-            CookieContainer cookies = new CookieContainer();
-            HttpClientHandler httpClientHandler = new HttpClientHandler()
-            {
-                //Proxy = proxy,
-                //UseProxy = true,
-                UseCookies = true,
-                CookieContainer = cookies
-            };
+            string[] files = Directory.GetFiles(SHOP_SEARCH_PATH);
+            var sss = files.Select(c => int.Parse(Path.GetFileNameWithoutExtension(c)));
+            if (sss.Count() == 0)
+                return 0;
+            else
+                return sss.Max();
+        }
+
+        public void BackCode()
+        {
 
 
             //HttpRequestMessage myHttpRequestMessage = new HttpRequestMessage();
@@ -109,16 +119,6 @@ namespace Catcher
 
             // ... Target page.
 
-            Uri url = new Uri("https://s.taobao.com/search?initiative_id=staobaoz_20180120&q=内存");
-            string data = "";
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            //httpContent.Content = 
-            request.Version = new Version(2, 0);
-            request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
-            request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("deflate"));
-            request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("br"));
-
-            
             //if (request.Content.Headers.ContentEncoding != null && request.Content.Headers.ContentEncoding.Any())
             //{
             //    //// request content is compressed, decompress it.
@@ -138,98 +138,127 @@ namespace Catcher
             //                  select c).FirstOrDefault();
             //CompressionHttpContent
             // ... Use HttpClient.
+
+            byte[] responseBytes = null;
+            //FileStream fs = new FileStream("F:/test.txt", FileMode.OpenOrCreate);
+            //StreamWriter sw = new StreamWriter(fs);
+            ////string result = Encoding.GetEncoding("GBK").GetString(responseBytes);
+            //responseBytes = Encoding.Convert(Encoding.UTF8, Encoding.Unicode, responseBytes);
+            //fs.Write(responseBytes, 0, responseBytes.Length);
+
+            //string result = await content.ReadAsStringAsync();
+            //responseBytes = Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding("GBK"), responseBytes);
+            //string result = Encoding.Unicode.GetString(responseBytes, 0, responseBytes.Length - 1);
+
+            string result = Encoding.UTF8.GetString(responseBytes);
+            //Console.WriteLine(result);
+            var config = Configuration.Default.WithJavaScript();
+
+            var parser = new HtmlParser(config);
+            //Just get the DOM representation
+            var document = parser.Parse(result);
+            //Console.WriteLine(document.DocumentElement);
+            //Serialize it back to the console
+            //Console.WriteLine(document.DocumentElement.OuterHtml);
+            var blueListItemsLinq = document.DocumentElement.QuerySelectorAll("*").Where(m => m.LocalName == "script");
+            FileStream fs = new FileStream("F:/test.txt", FileMode.Create);
+            //StreamWriter sw = new StreamWriter(fs);
+            foreach (var item in blueListItemsLinq)
+            {
+                if (item.TextContent.Contains("g_page_config"))
+                {
+                    string[] jsonSrings = item.TextContent.Split('\n');
+                    string jsonSring = jsonSrings[2];
+
+                    jsonSring = GetVariableString(jsonSring);
+                    JObject jo = (JObject)JsonConvert.DeserializeObject(jsonSring);
+                    string itemlist = jo["mods"]["shoplist"]["data"]["shopItems"].ToString();
+                    //p4p = System.Uri.UnescapeDataString(p4p);
+                    itemlist = DeUnicode(itemlist);
+                    byte[] writeBytes = System.Text.Encoding.UTF8.GetBytes(itemlist);
+                    //string value = @"\u65b0\u7586";
+                    //value = DeUnicode(p4p);
+                    //value = Encoding.Unicode.GetString(value);
+                    //writeBytes = System.Text.Encoding.UTF8.GetBytes(value);
+                    fs.Write(writeBytes, 0, writeBytes.Length);
+                    fs.Flush();
+                    fs.Close();
+                    Console.WriteLine("done");
+                }
+            }
+            //Console.WriteLine(item.OuterHtml);
+            //string result = Encoding.Unicode.GetString(responseBytes);
+            //Uri uri = new Uri("https://s.taobao.com/");
+            //CookieCollection responseCookies = cookies.GetCookies(uri);
+            //foreach (Cookie cookie in responseCookies)
+            //    Console.WriteLine(cookie.Name + ": " + cookie.Value);
+
+        }
+
+        async Task<string> DownloadPageAsync()
+        {
+            string proxyUri = string.Format("{0}:{1}", "127.0.0.1", 8888);
+            WebProxy proxy = new WebProxy(proxyUri);
+            // {
+            //UseDefaultCredentials = false,
+            //Credentials = proxyCreds,
+            // };
+            CookieContainer cookies = new CookieContainer();
+            HttpClientHandler httpClientHandler = new HttpClientHandler()
+            {
+                //Proxy = proxy,
+                //UseProxy = true,
+                UseCookies = true,
+                CookieContainer = cookies
+            };
+
             HttpClient client = new HttpClient(httpClientHandler);
+            client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36");
+            client.DefaultRequestHeaders.Add("accept-encoding", "gzip, deflate, br");
+            client.DefaultRequestHeaders.Add("accept-language", "zh-CN,zh;q=0.9,en;q=0.8");
+            client.Timeout = new TimeSpan(0, 0, 0, 3, 0);
             try
             {
-                client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36");
-                //client.DefaultRequestHeaders.Add("accept-encoding", "gzip, deflate, br");
-                client.DefaultRequestHeaders.Add("accept-language", "zh-CN,zh;q=0.9,en;q=0.8");
-                //var vv2 = httpContent.Headers.AcceptEncoding.Add("gzip")
-
-                HttpResponseMessage response = await client.SendAsync(request);
-
-                IEnumerable<string> contentEncodings;
-                if(response.Content.Headers.TryGetValues("content-encoding", out contentEncodings))
+                int existsPage = GetExistsPageIndex();
+                for (int currPage = existsPage; currPage < 100; currPage++)
                 {
-                    var encoding = contentEncodings.FirstOrDefault();
-                    var compressor = this.Compressors.FirstOrDefault(c => c.EncodingType.Equals(encoding, StringComparison.InvariantCultureIgnoreCase));
-                    response.Content = new DecompressedHttpContent(response.Content, compressor);
-                }
+                    string urlStr = "https://shopsearch.taobao.com/search?app=shopsearch&q=%E6%96%87%E8%83%B8&s=" + currPage * PAGE_SIZE;
+                    Uri url = new Uri(urlStr);
+                    var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    //httpContent.Content = 
+                    request.Version = new Version(2, 0);
 
-                HttpContent content = response.Content;
-                //foreach (var head in content.Headers)
-                //{
-                //    Console.WriteLine(head.Key + " " + head.Value);
-                //    foreach(var vv in head.Value)
-                //    {
-                //        Console.WriteLine(vv);
+                    HttpResponseMessage response = await client.SendAsync(request);
 
-                //    }
-                //}
-                //responseHeaders.GetValues()
-                byte[] responseBytes = await content.ReadAsByteArrayAsync();
-
-                //FileStream fs = new FileStream("F:/test.txt", FileMode.OpenOrCreate);
-                //StreamWriter sw = new StreamWriter(fs);
-                ////string result = Encoding.GetEncoding("GBK").GetString(responseBytes);
-                //responseBytes = Encoding.Convert(Encoding.UTF8, Encoding.Unicode, responseBytes);
-                //fs.Write(responseBytes, 0, responseBytes.Length);
-
-                //string result = await content.ReadAsStringAsync();
-                //responseBytes = Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding("GBK"), responseBytes);
-                //string result = Encoding.Unicode.GetString(responseBytes, 0, responseBytes.Length - 1);
-
-                string result = Encoding.UTF8.GetString(responseBytes);
-                //Console.WriteLine(result);
-                var config = Configuration.Default.WithJavaScript();
-
-                var parser = new HtmlParser(config);
-                //Just get the DOM representation
-                var document = parser.Parse(result);
-                //Console.WriteLine(document.DocumentElement);
-                //Serialize it back to the console
-                //Console.WriteLine(document.DocumentElement.OuterHtml);
-                var blueListItemsLinq = document.DocumentElement.QuerySelectorAll("*").Where(m => m.LocalName == "script");
-                FileStream fs = new FileStream("F:/test.txt", FileMode.Create);
-                //StreamWriter sw = new StreamWriter(fs);
-                foreach (var item in blueListItemsLinq)
-                {
-                    if (item.TextContent.Contains("g_page_config"))
+                    IEnumerable<string> contentEncodings;
+                    if (response.Content.Headers.TryGetValues("content-encoding", out contentEncodings))
                     {
-                        string [] jsonSrings = item.TextContent.Split('\n');
-                        string jsonSring = jsonSrings[2];
-
-                        jsonSring = GetVariableString(jsonSring);
-                        JObject jo = (JObject)JsonConvert.DeserializeObject(jsonSring);
-                        string p4p = jo["mods"]["p4p"]["data"]["p4pdata"].ToString();
-                        //p4p = System.Uri.UnescapeDataString(p4p);
-                        p4p = DeUnicode(p4p);
-                        byte[] writeBytes = System.Text.Encoding.UTF8.GetBytes(p4p);
-                        //string value = @"\u65b0\u7586";
-                        //value = DeUnicode(p4p);
-                        //value = Encoding.Unicode.GetString(value);
-                        //writeBytes = System.Text.Encoding.UTF8.GetBytes(value);
-                        fs.Write(writeBytes, 0, writeBytes.Length);
-                        fs.Flush();
-                        fs.Close();
-                        Console.WriteLine("done");
+                        var encoding = contentEncodings.FirstOrDefault();
+                        var compressor = this.Compressors.FirstOrDefault(c => c.EncodingType.Equals(encoding, StringComparison.InvariantCultureIgnoreCase));
+                        response.Content = new DecompressedHttpContent(response.Content, compressor);
                     }
-                }
-                    //Console.WriteLine(item.OuterHtml);
-                //string result = Encoding.Unicode.GetString(responseBytes);
-                //Uri uri = new Uri("https://s.taobao.com/");
-                //CookieCollection responseCookies = cookies.GetCookies(uri);
-                //foreach (Cookie cookie in responseCookies)
-                //    Console.WriteLine(cookie.Name + ": " + cookie.Value);
 
-                data = "";
+                    HttpContent content = response.Content;
+                    byte[] responseBytes = await content.ReadAsByteArrayAsync();
+
+                    string filePath = Path.Combine(SHOP_SEARCH_PATH, currPage.ToString());
+                    FileStream fs = new FileStream(filePath, FileMode.Create);
+                    fs.Write(responseBytes, 0, responseBytes.Length);
+                    fs.Flush();
+                    fs.Close();
+
+                    Console.WriteLine("finish write page {0}", currPage);
+
+                    await Task.Delay(3000);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
 
-            return data;
+            return "all done";
         }
     }
 }
+

@@ -12,6 +12,8 @@ namespace Catcher
     {
         static void Main(string[] args)
         {
+            //Encoding.Default = Encoding.UTF8;
+            Console.OutputEncoding = Encoding.UTF8;
             Console.WriteLine(Encoding.Default);
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             //Task t = new Task<>(DownloadPageAsync);
