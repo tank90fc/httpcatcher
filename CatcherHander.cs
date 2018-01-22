@@ -8,7 +8,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections.ObjectModel;
 using System.IO;
+using AngleSharp;
 using AngleSharp.Parser.Html;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using AngleSharp.Scripting;
+using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace Catcher
 {
@@ -38,6 +44,44 @@ namespace Catcher
             });
         }
 
+        public string GetVariableString(string inString)
+        {
+            string ret = "";
+            int startIndex = inString.IndexOf('=') + 1;
+            int endIndex = inString.LastIndexOf(';');
+            ret = inString.Substring(startIndex, endIndex - startIndex);
+
+            return ret;
+
+        }
+
+        public static string utf2hz(string str)
+        {
+            Regex regex = new Regex(@"\\u(\w{4})");
+            string result = "";
+            foreach (Match m in regex.Matches(str.ToLower().Trim()))
+                result += ((char)int.Parse(m.Groups[1].Value, System.Globalization.NumberStyles.HexNumber)).ToString();
+            return result;
+        }
+
+        static public string DeUnicode(string s)
+        {
+            string ret = null;
+            Regex reUnicode = new Regex(@"\\u([0-9a-fA-F]{4})", RegexOptions.Compiled);
+            ret = reUnicode.Replace(s, m =>
+            {
+                short c;
+                if (short.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.HexNumber, CultureInfo.InvariantCulture, out c))
+                {
+                    return "" + (char)c;
+                }
+                return m.Value;
+            });
+
+            ret = ret.Replace("\\/", "/");
+            return ret;
+        }
+
         async Task<string> DownloadPageAsync()
         {
             string proxyUri = string.Format("{0}:{1}", "127.0.0.1", 8888);
@@ -49,8 +93,8 @@ namespace Catcher
             CookieContainer cookies = new CookieContainer();
             HttpClientHandler httpClientHandler = new HttpClientHandler()
             {
-                Proxy = proxy,
-                UseProxy = true,
+                //Proxy = proxy,
+                //UseProxy = true,
                 UseCookies = true,
                 CookieContainer = cookies
             };
@@ -136,22 +180,47 @@ namespace Catcher
                 //string result = Encoding.Unicode.GetString(responseBytes, 0, responseBytes.Length - 1);
 
                 string result = Encoding.UTF8.GetString(responseBytes);
-                Console.WriteLine(result);
+                //Console.WriteLine(result);
+                var config = Configuration.Default.WithJavaScript();
 
-                //var parser = new HtmlParser();
-                ////Just get the DOM representation
-                //var document = parser.Parse(result);
+                var parser = new HtmlParser(config);
+                //Just get the DOM representation
+                var document = parser.Parse(result);
+                //Console.WriteLine(document.DocumentElement);
+                //Serialize it back to the console
+                //Console.WriteLine(document.DocumentElement.OuterHtml);
+                var blueListItemsLinq = document.DocumentElement.QuerySelectorAll("*").Where(m => m.LocalName == "script");
+                FileStream fs = new FileStream("F:/test.txt", FileMode.Create);
+                //StreamWriter sw = new StreamWriter(fs);
+                foreach (var item in blueListItemsLinq)
+                {
+                    if (item.TextContent.Contains("g_page_config"))
+                    {
+                        string [] jsonSrings = item.TextContent.Split('\n');
+                        string jsonSring = jsonSrings[2];
 
-                ////Serialize it back to the console
-                ////Console.WriteLine(document.DocumentElement.OuterHtml);
-                //var blueListItemsLinq = document.All.Where(m => m.LocalName == "html");
-                //foreach (var item in blueListItemsLinq)
-                //    Console.WriteLine(item.OuterHtml);
-                ////string result = Encoding.Unicode.GetString(responseBytes);
-                ////Uri uri = new Uri("https://s.taobao.com/");
-                ////CookieCollection responseCookies = cookies.GetCookies(uri);
-                ////foreach (Cookie cookie in responseCookies)
-                ////    Console.WriteLine(cookie.Name + ": " + cookie.Value);
+                        jsonSring = GetVariableString(jsonSring);
+                        JObject jo = (JObject)JsonConvert.DeserializeObject(jsonSring);
+                        string p4p = jo["mods"]["p4p"]["data"]["p4pdata"].ToString();
+                        //p4p = System.Uri.UnescapeDataString(p4p);
+                        p4p = DeUnicode(p4p);
+                        byte[] writeBytes = System.Text.Encoding.UTF8.GetBytes(p4p);
+                        //string value = @"\u65b0\u7586";
+                        //value = DeUnicode(p4p);
+                        //value = Encoding.Unicode.GetString(value);
+                        //writeBytes = System.Text.Encoding.UTF8.GetBytes(value);
+                        fs.Write(writeBytes, 0, writeBytes.Length);
+                        fs.Flush();
+                        fs.Close();
+                        Console.WriteLine("done");
+                    }
+                }
+                    //Console.WriteLine(item.OuterHtml);
+                //string result = Encoding.Unicode.GetString(responseBytes);
+                //Uri uri = new Uri("https://s.taobao.com/");
+                //CookieCollection responseCookies = cookies.GetCookies(uri);
+                //foreach (Cookie cookie in responseCookies)
+                //    Console.WriteLine(cookie.Name + ": " + cookie.Value);
 
                 data = "";
             }
