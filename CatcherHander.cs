@@ -92,7 +92,8 @@ namespace Catcher
 
         public void DoCatchShops()
         {
-            CahchData cahchData = new CahchData(SHOP_SEARCH_PATH, "https://shopsearch.taobao.com/search?app=shopsearch&q=显卡&s={0}");
+            //CahchData cahchData = new CahchData(SHOP_SEARCH_PATH, "https://shopsearch.taobao.com/search?app=shopsearch&q=显卡&s={0}");
+            CahchData cahchData = new CahchData("shops", "https://shop36826868.taobao.com/category.htm?pageNo={0}", 1, 1);
             //List<CatchUrl> urls = GetCommonURLs(SHOP_SEARCH_PATH, "https://shopsearch.taobao.com/search?app=shopsearch&q=显卡&s={0}");
             Task<string> ttt = Task<string>.Run(() => DownloadPageAsync(cahchData));
         }

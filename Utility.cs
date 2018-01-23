@@ -117,6 +117,7 @@ namespace Catcher
         static public void BackCode()
         {
 
+            //var blueListItemsLinq = document.DocumentElement.QuerySelectorAll("*").Where(m => m.Id == "J_ShopAsynSearchURL");
 
             //HttpRequestMessage myHttpRequestMessage = new HttpRequestMessage();
             //myHttpRequestMessage.Version = new Version(2, 0);

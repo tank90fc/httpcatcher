@@ -16,7 +16,8 @@ namespace Catcher
             Console.WriteLine(Encoding.Default);
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            DoCatchProcess();
+            //DoCatchProcess();
+            DoDataProcess();
 
             Console.WriteLine("Downloading page...");
             Console.ReadLine();

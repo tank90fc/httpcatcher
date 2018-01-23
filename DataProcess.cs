@@ -14,6 +14,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
 using System.Globalization;
+using AngleSharp.Dom.Html;
 
 namespace Catcher
 {
@@ -32,6 +33,7 @@ namespace Catcher
         public long uid;
         public string shopUrl;
         public string title;
+        public string J_ShopAsynSearchURL;
     }
 
     public class ItemData
@@ -44,7 +46,7 @@ namespace Catcher
 
     class DataProcess
     {
-        public string DATA_CENTER_PATH;
+        //public string DATA_CENTER_PATH;
         public ShopDBBase shopDBBase = null;
 
         public string GetJsonFilePath<T>()
@@ -92,15 +94,56 @@ namespace Catcher
             }
         }
 
-        public void ParseHtml(string filePath)
+        public void ParseHtml(string filePath, Func<IHtmlDocument, string> doHtmlParser)
         {
             using (StreamReader sr = new StreamReader(filePath))
             {
                 string html = sr.ReadToEnd();
                 var parser = new HtmlParser();
                 //Just get the DOM representation
-                var document = parser.Parse(html);
-                var blueListItemsLinq = document.DocumentElement.QuerySelectorAll("*").Where(m => m.LocalName == "script");
+                IHtmlDocument document = parser.Parse(html);
+                string ret = doHtmlParser(document);
+
+                if(!string.IsNullOrEmpty(ret))
+                {
+                    Console.Write(ret + "," + filePath);
+                }
+            }
+        }
+
+        public void ParseCommon<T>(string searchPath, Func<IHtmlDocument, string> doHtmlParser, T dbBase) where T : new()
+        {
+            string tempSearchPath = Utility.GetWrokPath(searchPath);
+            Utility.CreateIfMissing(tempSearchPath);
+            var outerNumFile = 0;
+            var tempList = Directory.GetFiles(tempSearchPath).ToList();
+            var files = (from c in tempList
+                         let parseSuccess = int.TryParse(Path.GetFileNameWithoutExtension(c), out outerNumFile)
+                         let numFile = outerNumFile
+                         where parseSuccess == true
+                         orderby numFile
+                         select c);
+
+            if (files.Count() > 0)
+            {
+                Deserializer(out dbBase);
+
+                files.ToList().ForEach(r => ParseHtml(r, doHtmlParser));
+
+                Serializer(dbBase);
+            }
+        }
+
+        public void ParseShopCategory()
+        {
+
+        }
+
+        public void ParseShops()
+        {
+            Func<IHtmlDocument, string> doHtmlParser = ((document) =>
+            {
+                var blueListItemsLinq = document.QuerySelectorAll("*").Where(m => m.LocalName == "script");
                 bool findPageConfig = false;
                 foreach (var item in blueListItemsLinq)
                 {
@@ -122,42 +165,30 @@ namespace Catcher
                                 ShopData rowsResult = Newtonsoft.Json.JsonConvert.DeserializeObject<ShopData>(json.ToString());
                                 if (!shopDBBase.shops.ContainsKey(rowsResult.uid))
                                     shopDBBase.shops[rowsResult.uid] = rowsResult;
+                                //else
+                                //{
+                                //    rowsResult.J_ShopAsynSearchURL = shopDBBase.shops[rowsResult.uid].J_ShopAsynSearchURL;
+                                //    shopDBBase.shops[rowsResult.uid] = rowsResult;
+                                //}
+
                             }
                         }
-                        catch ( Exception ex)
+                        catch (Exception ex)
                         {
-                            Console.WriteLine("g_page_config error, {0}",filePath);
+                            return "g_page_config error";
                             //Console.Write(ex);
                         }
                     }
                 }
 
                 if (!findPageConfig)
-                    Console.WriteLine("g_page_config not find, {0}",filePath);
-            }
-        }
+                    return "g_page_config not find";
 
-        public void ParseShops()
-        {
-            string shopsearchPath = Utility.GetWrokPath("shopsearch");
-            Utility.CreateIfMissing(shopsearchPath);
-            var outerNumFile = 0;
-            var tempList = Directory.GetFiles(shopsearchPath).ToList();
-            var files = (from c in tempList
-                              let parseSuccess = int.TryParse(Path.GetFileNameWithoutExtension(c), out outerNumFile)
-                              let numFile = outerNumFile
-                              where parseSuccess == true
-                              orderby numFile
-                              select c);
-            
-            if (files.Count() > 0)
-            {
-                Deserializer(out shopDBBase);
+                return null;
+            });
 
-                files.ToList().ForEach(r => ParseHtml(r));
+            ParseCommon("shopsearch", doHtmlParser, shopDBBase);
 
-                Serializer(shopDBBase);
-            }
         }
     }
 }
