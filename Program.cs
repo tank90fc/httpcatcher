@@ -12,23 +12,28 @@ namespace Catcher
     {
         static void Main(string[] args)
         {
-            //Encoding.Default = Encoding.UTF8;
             Console.OutputEncoding = Encoding.UTF8;
             Console.WriteLine(Encoding.Default);
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-            //Task t = new Task<>(DownloadPageAsync);
 
-            CatcherHander catcherHander = new CatcherHander();
-            catcherHander.DoTest();
-
-            //DownloadPageAsync()
-            //Task t = new Task(DownloadPageAsync);
-            //t.Start();
+            DoCatchProcess();
 
             Console.WriteLine("Downloading page...");
             Console.ReadLine();
+            return;
+        }
+        static void DoCatchProcess()
+        {
+            CatcherHander catcherHander = new CatcherHander();
+            catcherHander.DoCatchShops();
+
+        }
+        static void DoDataProcess()
+        {
+            DataProcess dataProcess = new DataProcess();
+            dataProcess.ParseShops();
         }
 
-        
+
     }
 }
