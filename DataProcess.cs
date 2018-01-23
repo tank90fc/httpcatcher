@@ -136,7 +136,21 @@ namespace Catcher
 
         public void ParseShopCategory()
         {
+            Func<IHtmlDocument, string> doHtmlParser = ((document) =>
+            {
+                var blueListItemsLinq = document.QuerySelector("head").QuerySelectorAll("meta").Where(
+                    m => 
+                    {
+                        IHtmlMetaElement temp = m as IHtmlMetaElement;
+                        if (temp != null)
+                            return temp.Name == "microscope-data";
+                        return false;
+                    });
+                
+                return null;
+            });
 
+            ParseCommon("shop_category", doHtmlParser, shopDBBase);
         }
 
         public void ParseShops()

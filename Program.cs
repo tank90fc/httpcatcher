@@ -32,7 +32,7 @@ namespace Catcher
         static void DoDataProcess()
         {
             DataProcess dataProcess = new DataProcess();
-            dataProcess.ParseShops();
+            dataProcess.ParseShopCategory();
         }
 
 
